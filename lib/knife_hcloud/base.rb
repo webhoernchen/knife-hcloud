@@ -83,5 +83,28 @@ module KnifeHcloud
       ui.error m
       exit 1 if !options.has_key?(:abort) || options[:abort]
     end
+
+    def log_action(action:, server:nil, wait: 5, &block)
+      while action.status == 'running' || action.status != 'error' && server && server.status != 'running'
+        log "Waiting for Action #{action.id} to complete (#{action.progress}%) ..."
+        log "Action (#{action.command}) Status: #{action.status}"
+        log "Server Status: #{server.status}" if server
+#        log "Server IP Config: #{server.public_net['ipv4']}" if server
+        yield action: action, server: server if block_given?
+        log ''
+        sleep wait
+        action = hcloud_client.actions.find action.id
+        server = hcloud_client.servers.find server.id if server
+      end
+      
+      log "Action (#{action.command}) Status: #{action.status}"
+      log "Server Status: #{server.status}" if server
+      log ''
+    
+      unless action.status == 'success'
+        p action
+        error "Action #{action.id} is failed"
+      end
+    end
   end
 end
