@@ -77,6 +77,8 @@ module KnifeHcloud
       error 'Server is not available by ssh' unless server_available_by_ssh?
       update_known_hosts if @server_is_new
       prepare_server_for_chef if @server_is_new
+      bootstrap_or_cook
+      reboot_server if @server_is_new
     end
 
     private
@@ -276,6 +278,97 @@ END
         info = options.empty? ? nil : "#{options[:time]} / #{options[:retries]}"
         log '  * ' + [e.class, server_ips.first, Time.now.to_s, info].compact.collect(&:to_s).join(' - ')
         false
+      end
+    end
+    
+    def bootstrap_or_cook
+      command = "dpkg -l | grep ' chef' | awk '{print $3}' | egrep -o '([0-9]+\\.)+[0-9]+'"
+      versions = `ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no #{Chef::Config[:knife][:ssh_user]}@#{server_ips.first} "#{command}"`.strip.split("\n").collect(&:strip)
+
+      log "Chef version on server '#{server_name}': #{versions.join(', ')}"
+      log "Local chef version: #{Chef::VERSION}"
+      
+      chef_klass = if !versions.empty? && versions.any? {|v| v >= Chef::VERSION }
+        cook
+      else
+        bootstrap
+      end
+      
+      chef_klass.load_deps
+      chef = chef_klass.new
+      chef.name_args = [server_ips.first]
+      chef.config[:override_runlist] = Chef::Config[:knife][:override_runlist] if Chef::Config[:knife][:override_runlist]
+      chef.config[:ssh_user] = Chef::Config[:knife][:ssh_user]
+      chef.config[:host_key_verify] = false
+      chef.config[:chef_node_name] = Chef::Config[:knife][:chef_node_name]
+      chef.config[:forward_agent] = Chef::Config[:knife][:forward_agent]
+      #chef.config[:use_sudo] = true unless bootstrap.config[:ssh_user] == 'root'
+#      chef.config[:sudo_command] = "echo #{Shellwords.escape(user_password)} | sudo -ES" if @server_is_new
+      chef.config[:ssh_control_master] = 'no'
+      chef.config[:ssh_keepalive_interval] = 30
+      chef.config[:ssh_keepalive] = true
+      chef.run
+    end
+
+    def bootstrap
+      log "Boostrap server..."
+      Chef::Knife::SoloBootstrap
+    end
+
+    def cook
+      log "Cook server..."
+      Chef::Knife::SoloCook
+    end
+      
+    def ssh(command)
+      ssh = Chef::Knife::Ssh.new
+      ssh.ui = ui
+      ssh.name_args = [ server_ips.first, command ]
+      ssh.config[:ssh_port] = 22
+      #ssh.config[:ssh_gateway] = Chef::Config[:knife][:ssh_gateway] || config[:ssh_gateway]
+      #ssh.config[:identity_file] = locate_config_value(:identity_file)
+      ssh.config[:manual] = true
+      ssh.config[:host_key_verify] = false
+      ssh.config[:on_error] = :raise
+      ssh
+    end
+
+    def ssh_root(command)
+      s = ssh(command)
+      s.config[:ssh_user] = 'root'
+#      s.config[:ssh_password] = root_password
+      s
+    end
+
+    def ssh_user(command)
+      s = ssh(command)
+      s.config[:ssh_user] = Chef::Config[:knife][:ssh_user]
+      s
+    end
+
+    def reboot_server
+      user_and_server = "#{Chef::Config[:knife][:ssh_user]}@#{server_ips.first}"
+
+      installed_kernel = `ssh #{user_and_server} "ls /boot/initrd.img-* | sort -V -r | head -n 1 | sed -e 's/\\/boot\\/initrd\\.img-//g'"`.strip
+      loaded_kernel = `ssh #{user_and_server} "uname -r"`.strip
+
+      if installed_kernel != loaded_kernel
+        log 'Reboot server ...'
+        
+        begin
+          ssh('sudo reboot').run
+        rescue IOError => e
+          raise e unless e.message == 'closed stream'
+        end
+
+        sleep 30
+
+        if server_available_by_ssh?
+          log 'Server is available!'
+          log ''
+        else
+          error 'Server reboot failed!'
+        end
       end
     end
   end
