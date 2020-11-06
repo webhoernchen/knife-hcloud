@@ -6,7 +6,7 @@ module KnifeHcloud
         deps do 
           require 'hcloud'
           require 'chef/knife'
-#          require 'active_support/core_ext/string'
+          require 'active_support/core_ext/string'
       
           Chef::Knife.load_deps
           

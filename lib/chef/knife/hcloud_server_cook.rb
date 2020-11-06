@@ -170,7 +170,7 @@ module KnifeHcloud
       a_records = node_config['a_records']
       a_records.collect do |domain, hosts|
         hosts.collect do |host|
-          [host, domain].join('.')
+          [host, domain].delete_if(&:blank?).join('.')
         end
       end.flatten.first if a_records
     end
