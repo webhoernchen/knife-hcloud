@@ -178,7 +178,7 @@ module KnifeHcloud
     def update_known_hosts
       known_hosts_file = File.join(ENV['HOME'], '.ssh', 'known_hosts').to_s
 
-      entries = server_ips.sup
+      entries = server_ips.dup
       entries << ptr_record
       entries.each do |ip|
         system("ssh-keygen -R #{ip}")
