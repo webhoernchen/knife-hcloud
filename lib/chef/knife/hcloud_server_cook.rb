@@ -178,13 +178,19 @@ module KnifeHcloud
     def update_known_hosts
       known_hosts_file = File.join(ENV['HOME'], '.ssh', 'known_hosts').to_s
 
-      server_ips.each do |ip|
+      entries = server_ips.sup
+      entries << ptr_record
+      entries.each do |ip|
         system("ssh-keygen -R #{ip}")
         system("ssh-keyscan #{ip} >> #{known_hosts_file}")
       end
     end
 
     def server_ips
+      @server_ips ||= _server_ips
+    end
+
+    def _server_ips
       ips = []
       ips << server.public_net['ipv4']['ip']
       ips += server.public_net['ipv6']['dns_ptr'].collect {|ptr| ptr['ip'] }
