@@ -84,8 +84,8 @@ module KnifeHcloud
       exit 1 if !options.has_key?(:abort) || options[:abort]
     end
 
-    def log_action(action:, server:nil, wait: 5, &block)
-      while action.status == 'running' || action.status != 'error' && server && server.status != 'running'
+    def log_action(action:, server:nil, expected_server_status: 'running', wait: 5, &block)
+      while action.status == 'running' || action.status != 'error' && server && server.status != expected_server_status
         log "Waiting for Action #{action.id} to complete (#{action.progress}%) ..."
         log "Action (#{action.command}) Status: #{action.status}"
         log "Server Status: #{server.status}" if server
