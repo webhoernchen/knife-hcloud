@@ -24,10 +24,26 @@ module KnifeHcloud
       end
 
       if server
+        server_ips = []
+        server_ips << server.public_net['ipv4']['ip']
+        server_ips += server.public_net['ipv6']['dns_ptr'].collect {|ptr| ptr['ip'] }
+
+        if server.status == 'running'
+          system "ssh -C #{Chef::Config[:knife][:ssh_user]}@#{server_ips.first} 'sudo shutdown -h now'"
+          log_action server: server, expected_server_status: 'off'
+        elsif server.status != 'off'
+          action = server.poweroff
+          log_action action: action, server: server, expected_server_status: 'off'
+        end
+        
+        server = hcloud_client.servers.find server.id
+        
         timestamp = Time.now.strftime '%Y%m%d%H%M%S%L'
         description = [server_name, timestamp].join('-')
-        image = server.create_image type: 'snapshot', description: description
+        action, image = server.create_image type: 'snapshot', description: description
         log_action action: action
+
+        log "Image '#{description}' created (#{image.id})"
       else
         error "Server '#{server_name}' not found"
       end

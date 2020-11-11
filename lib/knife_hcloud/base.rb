@@ -84,26 +84,26 @@ module KnifeHcloud
       exit 1 if !options.has_key?(:abort) || options[:abort]
     end
 
-    def log_action(action:, server:nil, expected_server_status: 'running', wait: 5, &block)
-      while action.status == 'running' || action.status != 'error' && server && server.status != expected_server_status
-        log "Waiting for Action #{action.id} to complete (#{action.progress}%) ..."
-        log "Action (#{action.command}) Status: #{action.status}"
+    def log_action(action:nil, server:nil, expected_server_status: 'running', wait: 5, &block)
+      while action && action.status == 'running' || (!action || action.status != 'error') && server && server.status != expected_server_status
+        log "Waiting for Action #{action.id} to complete (#{action.progress}%) ..." if action
+        log "Action (#{action.command}) Status: #{action.status}" if action
         log "Server Status: #{server.status}" if server
 #        log "Server IP Config: #{server.public_net['ipv4']}" if server
         yield action: action, server: server if block_given?
         log ''
         sleep wait
-        action = hcloud_client.actions.find action.id
+        action = hcloud_client.actions.find action.id if action
         server = hcloud_client.servers.find server.id if server
       end
       
-      log "Action (#{action.command}) Status: #{action.status}"
+      log "Action (#{action.command}) Status: #{action.status}" if action
       log "Server Status: #{server.status}" if server
       log ''
     
-      unless action.status == 'success'
+      if action && action.status != 'success'
         p action
-        error "Action #{action.id} is failed"
+        error "Action #{action.id} is failed: #{action.status}"
       end
     end
   end
