@@ -2,10 +2,17 @@ module KnifeHcloud
   module Config
 
     private
-    def _node_config
+    def node_config_file
+      @node_config_file ||= _node_config_file
+    end
+
+    def _node_config_file
       n = Chef::Config[:knife][:chef_node_name]
-      n = "nodes/#{n}.json"
-      JSON.parse File.read n
+      "nodes/#{n}.json"
+    end
+
+    def _node_config
+      JSON.parse File.read node_config_file
     end
 
     def node_config
@@ -14,7 +21,7 @@ module KnifeHcloud
 
     def _hcloud_config
       config = node_config['hcloud']
-      error "No profitbricks config found! Please specify \"hcloud\" in your node!" unless config
+      error "No hcloud config found! Please specify \"hcloud\" in your node!" unless config
       config
     rescue Errno::ENOENT
       error "Node #{n.inspect} not exist"

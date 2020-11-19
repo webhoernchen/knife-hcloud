@@ -73,12 +73,14 @@ module KnifeHcloud
 #      p detect_server_type
 
       server
+      handle_volumes
       update_ptr
       error 'Server is not available by ssh' unless server_available_by_ssh?
       update_known_hosts if @server_is_new
       prepare_server_for_chef if @server_is_new
       bootstrap_or_cook
       reboot_server if @server_is_new
+      delete_unused_volumes
     end
 
     private
@@ -130,6 +132,58 @@ module KnifeHcloud
       end
 
       ssh_key ||= hcloud_client.ssh_keys.create name: ENV['USER'], public_key: public_ssh_key
+    end
+
+    def handle_volumes
+      create_or_update_volumes
+      File.open(node_config_file, 'w+') {|f| f.write JSON.pretty_generate node_config }
+    end
+
+    def create_or_update_volumes
+      server_config['volumes'].each do |name, options|
+        volume_name = [server_name, name].join('-')
+        size = options['size']
+
+        volume = hcloud_client.volumes.detect do |volume|
+          volume.name == volume_name && volume.server == server.id
+        end
+
+        unless volume
+          action = hcloud_client.volumes.create name: volume_name, server: server.id,
+            size: size, automount: false, format: options['format']
+          
+          log_action action: action, volume: volume
+          volume = hcloud_client.volumes.find volume.id
+        end
+
+        if volume.size < size
+          action = volume.resize size: size
+          log_action action: action, volume: volume
+          volume = hcloud_client.volumes.find volume.id
+        elsif volume.size > size
+          log_error "Volume is already #{volume.size}GB. Config is #{size}GB"
+        end unless volume.size == size
+
+        options['linux_device'] = volume.linux_device
+      end
+    end
+
+    def delete_unused_volumes
+      names = server_config['volumes'].collect do |name, options|
+        [server_name, name].join('-')
+      end
+
+      hcloud_client.volumes.select do |volume|
+        volume.server == server.id
+      end.select do |volume|
+        !names.include? volume.name
+      end.each do |volume|
+        action = volume.detach
+        log_action action: action
+        
+        action = volume.destroy
+        log_action action: action
+      end
     end
 
     def update_ptr

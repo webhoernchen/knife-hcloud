@@ -84,27 +84,42 @@ module KnifeHcloud
       exit 1 if !options.has_key?(:abort) || options[:abort]
     end
 
-    def log_action(action:nil, server:nil, expected_server_status: 'running', wait: 5, &block)
-      while action && action.status == 'running' || (!action || action.status != 'error') && server && server.status != expected_server_status
+    def log_action(action:nil, server:nil, expected_server_status: 'running', volume: nil, expected_volume_status: 'available', wait: 5, &block)
+      while log_action_check action: action, server: server, expected_server_status: expected_server_status, volume: volume, expected_volume_status: expected_volume_status
         log "Waiting for Action #{action.id} to complete (#{action.progress}%) ..." if action
         log "Action (#{action.command}) Status: #{action.status}" if action
         log "Server Status: #{server.status}" if server
+        log "Volume Status: #{volume.status}" if volume
 #        log "Server IP Config: #{server.public_net['ipv4']}" if server
-        yield action: action, server: server if block_given?
+        yield action: action, server: server, volume: volume if block_given?
         log ''
+        
         sleep wait
+
         action = hcloud_client.actions.find action.id if action
         server = hcloud_client.servers.find server.id if server
+        volume = hcloud_client.volumes.find volume.id if volume
       end
       
       log "Action (#{action.command}) Status: #{action.status}" if action
       log "Server Status: #{server.status}" if server
+      log "Volume Status: #{volume.status}" if volume
       log ''
     
       if action && action.status != 'success'
         p action
         error "Action #{action.id} is failed: #{action.status}"
       end
+    end
+
+    def log_action_check(action:, server:, expected_server_status:, volume:, expected_volume_status:)
+      cond = action.status == 'running' if action
+      action_cond = !action || action.status != 'error'
+
+      cond &&= action_cond && server.status != expected_server_status if server
+      cond &&= action_cond && volume.status != expected_volume_status if volume
+
+      cond
     end
   end
 end
