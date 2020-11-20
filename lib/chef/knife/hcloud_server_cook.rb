@@ -136,11 +136,15 @@ module KnifeHcloud
 
     def handle_volumes
       create_or_update_volumes
-      File.open(node_config_file, 'w+') {|f| f.write JSON.pretty_generate node_config }
+      File.open(node_config_file, 'w+') {|f| f.write JSON.pretty_generate node_config } unless server_volumes.empty?
+    end
+
+    def server_volumes
+      server_config['volumes'] ||= {}
     end
 
     def create_or_update_volumes
-      server_config['volumes'].each do |name, options|
+      server_volumes.each do |name, options|
         volume_name = [server_name, name].join('-')
         size = options['size']
 
@@ -169,7 +173,7 @@ module KnifeHcloud
     end
 
     def delete_unused_volumes
-      names = server_config['volumes'].collect do |name, options|
+      names = server_volumes.collect do |name, options|
         [server_name, name].join('-')
       end
 
