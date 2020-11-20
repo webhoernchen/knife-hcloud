@@ -24,6 +24,18 @@ module KnifeHcloud
       end
 
       if server
+        hcloud_client.volumes.select do |volume|
+          volume.server == server.id
+        end.each do |volume|
+          action = volume.detach
+          log_action action: action
+          volume = hcloud_client.volumes.find volume.id
+          
+          action = volume.destroy
+          log_action action: action if action.respond_to? :status
+        end
+
+        server = hcloud_client.servers.find server.id
         action = server.destroy
         log_action action: action
       else

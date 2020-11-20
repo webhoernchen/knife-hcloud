@@ -149,8 +149,8 @@ module KnifeHcloud
         end
 
         unless volume
-          action = hcloud_client.volumes.create name: volume_name, server: server.id,
-            size: size, automount: false, format: options['format']
+          action, volume = hcloud_client.volumes.create name: volume_name,
+            server: server.id, size: size, automount: false, format: options['format']
           
           log_action action: action, volume: volume
           volume = hcloud_client.volumes.find volume.id
@@ -180,6 +180,7 @@ module KnifeHcloud
       end.each do |volume|
         action = volume.detach
         log_action action: action
+        volume = hcloud_client.volumes.find volume.id
         
         action = volume.destroy
         log_action action: action

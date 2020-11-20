@@ -13,18 +13,18 @@ module KnifeHcloud
 
     def _node_config
       JSON.parse File.read node_config_file
+    rescue Errno::ENOENT
+      error "Node #{Chef::Config[:knife][:chef_node_name].inspect} not exist"
     end
 
     def node_config
-      @node_config || _node_config
+      @node_config ||= _node_config
     end
 
     def _hcloud_config
       config = node_config['hcloud']
       error "No hcloud config found! Please specify \"hcloud\" in your node!" unless config
       config
-    rescue Errno::ENOENT
-      error "Node #{n.inspect} not exist"
     end
 
     def hcloud_config

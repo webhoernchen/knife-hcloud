@@ -85,41 +85,55 @@ module KnifeHcloud
     end
 
     def log_action(action:nil, server:nil, expected_server_status: 'running', volume: nil, expected_volume_status: 'available', wait: 5, &block)
-      while log_action_check action: action, server: server, expected_server_status: expected_server_status, volume: volume, expected_volume_status: expected_volume_status
-        log "Waiting for Action #{action.id} to complete (#{action.progress}%) ..." if action
-        log "Action (#{action.command}) Status: #{action.status}" if action
-        log "Server Status: #{server.status}" if server
-        log "Volume Status: #{volume.status}" if volume
-#        log "Server IP Config: #{server.public_net['ipv4']}" if server
-        yield action: action, server: server, volume: volume if block_given?
-        log ''
-        
-        sleep wait
-
-        action = hcloud_client.actions.find action.id if action
-        server = hcloud_client.servers.find server.id if server
-        volume = hcloud_client.volumes.find volume.id if volume
-      end
+      action = log_action_action action: action, wait: wait if action
+      server = log_action_server server: server, expected_server_status: expected_server_status, wait: wait if server
+      volume = log_action_volume volume: volume, expected_volume_status: expected_volume_status, wait: wait if volume
       
       log "Action (#{action.command}) Status: #{action.status}" if action
       log "Server Status: #{server.status}" if server
       log "Volume Status: #{volume.status}" if volume
       log ''
-    
-      if action && action.status != 'success'
-        p action
-        error "Action #{action.id} is failed: #{action.status}"
-      end
     end
 
-    def log_action_check(action:, server:, expected_server_status:, volume:, expected_volume_status:)
-      cond = action.status == 'running' if action
-      action_cond = !action || action.status != 'error'
+    def log_action_action(action:, wait:)
+      while action.status == 'running' && action.status != 'error'
+        log "Action (#{action.command}) Status: #{action.status}"
+        log ''
+        
+        sleep wait
+        action = hcloud_client.actions.find action.id
+      end
+    
+      if action && action.status != 'success'
+#        p action
+        error "Action #{action.id} is failed: #{action.status}"
+      end
 
-      cond &&= action_cond && server.status != expected_server_status if server
-      cond &&= action_cond && volume.status != expected_volume_status if volume
+      action
+    end
 
-      cond
+    def log_action_server(server:, expected_server_status:, wait:)
+      while server.status != expected_server_status
+        log "Server Status: #{server.status}"
+        log ''
+        
+        sleep wait
+        server = hcloud_client.servers.find server.id
+      end
+
+      server
+    end
+
+    def log_action_volume(volume:, expected_volume_status:, wait:)
+      while volume.status != expected_volume_status
+        log "Volume Status: #{volume.status}"
+        log ''
+        
+        sleep wait
+        volume = hcloud_client.volumes.find volume.id
+      end
+
+      volume
     end
   end
 end
