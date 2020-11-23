@@ -9,7 +9,7 @@ module KnifeHcloud
     deps do
       require 'net/ssh'
       require 'ipaddress'
-#      require 'net/ssh/multi'
+      require 'net/ssh/multi'
       
 #      require 'chef/mixin/command'
       require 'chef/knife'
