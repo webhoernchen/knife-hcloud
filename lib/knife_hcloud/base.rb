@@ -97,6 +97,7 @@ module KnifeHcloud
 
     def log_action_action(action:, wait:)
       while action.status == 'running' && action.status != 'error'
+        log "Waiting for Action #{action.id} to complete (#{action.progress}%) ..."
         log "Action (#{action.command}) Status: #{action.status}"
         log ''
         
