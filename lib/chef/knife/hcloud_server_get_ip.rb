@@ -31,9 +31,7 @@ module KnifeHcloud
       :proc => Proc.new { |o| Chef::Config[:knife][:ip_v6_only] = true }
 
     def run
-      server = hcloud_client.servers.detect do |server|
-        server.name == server_name
-      end
+      server = hcloud_client.servers.find_by :name => server_name
 
       if server
         knife = Chef::Config[:knife]

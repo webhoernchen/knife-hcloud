@@ -19,9 +19,7 @@ module KnifeHcloud
       :proc => Proc.new { |o| Chef::Config[:knife][:chef_node_name] = o }
 
     def run
-      server = hcloud_client.servers.detect do |server|
-        server.name == server_name
-      end
+      server = hcloud_client.servers.find_by :name => server_name
 
       if server
         hcloud_client.volumes.select do |volume|

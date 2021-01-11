@@ -89,9 +89,7 @@ module KnifeHcloud
     end
 
     def detect_server
-      server = hcloud_client.servers.detect do |server|
-        server.name == server_name
-      end
+      server = hcloud_client.servers.find_by :name => server_name
 
       if server && server.status == 'off'
 #        response = server.poweron
@@ -127,7 +125,7 @@ module KnifeHcloud
       log ''
       
       public_ssh_key = File.read(public_ssh_key_file).strip
-      ssh_key = hcloud_client.ssh_keys.detect do |key|
+      ssh_key = hcloud_client.ssh_keys.detect do |key| # can not be used with find_by
         key.public_key == public_ssh_key
       end
 
@@ -148,8 +146,9 @@ module KnifeHcloud
         volume_name = [server_name, name].join('-')
         size = options['size']
 
-        volume = hcloud_client.volumes.detect do |volume|
-          volume.name == volume_name && volume.server == server.id
+        # server can not be filtered by where
+        volume = hcloud_client.volumes.where(:name => volume_name).detect do |volume|
+          volume.server == server.id
         end
 
         unless volume

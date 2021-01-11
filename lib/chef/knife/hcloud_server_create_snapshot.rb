@@ -29,9 +29,7 @@ module KnifeHcloud
       :proc => Proc.new { |o| Chef::Config[:knife][:no_old_images_delete] = true }
 
     def run
-      server = hcloud_client.servers.detect do |server|
-        server.name == server_name
-      end
+      server = hcloud_client.servers.find_by :name => server_name
 
       if server
         server_ips = []
