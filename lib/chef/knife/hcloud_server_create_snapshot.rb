@@ -24,8 +24,8 @@ module KnifeHcloud
       :proc => Proc.new { |o| Chef::Config[:knife][:no_server_delete] = true }
 
     option :no_old_images_delete,
-      :long => '--no-server-delete',
-      :description => 'Server will not be deleted',
+      :long => '--no-old-images-delete',
+      :description => 'Old images will not be deleted',
       :proc => Proc.new { |o| Chef::Config[:knife][:no_old_images_delete] = true }
 
     def run
