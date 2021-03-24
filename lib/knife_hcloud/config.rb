@@ -39,18 +39,42 @@ module KnifeHcloud
       hcloud_config['location']
     end
 
+
+    IN_GERMANY = 'any_in_germany'
+    IN_EU = 'any_in_eu'
     def detect_hcloud_location
-      hcloud_locations[hcloud_location_name] || \
-        error("No location for #{hcloud_location_name.inspect}; available: #{hcloud_locations.keys.sort.join(', ')}")
+      if hcloud_location_name == IN_GERMANY
+        all_available_hcloud_locations_sorted_by_usage.detect do |datacenter|
+          datacenter.location.country == 'DE'
+        end
+      elsif hcloud_location_name == IN_EU
+        all_available_hcloud_locations_sorted_by_usage.first
+      else
+        hcloud_locations[hcloud_location_name] || \
+          error("No location for #{hcloud_location_name.inspect}; available: #{hcloud_locations.keys.sort.join(', ')}")
+      end
     end
 
     def hcloud_locations
-      @hcloud_locations ||= hcloud_client.datacenters.select do |datacenter|
-        datacenter.location.network_zone == 'eu-central'
-      end.inject({}) do |sum, datacenter|
+      @hcloud_locations ||= all_available_hcloud_locations.inject({}) do |sum, datacenter|
         key = datacenter.location.city.downcase
         error "Datacenter #{datacenter.name} already exists in #{sum.keys.join(', ')}" if sum[key]
         sum.merge key => datacenter.id
+      end
+    end
+
+    def all_available_hcloud_locations_sorted_by_usage
+      @all_available_hcloud_locations_sorted_by_usage ||= all_available_hcloud_locations.sort_by do |datacenter|
+        all_servers_by_type.select {|s| s.datacenter.id == datacenter.id }.count
+      end
+    end
+
+    def all_available_hcloud_locations
+      @all_available_hcloud_locations ||= hcloud_client.datacenters.select do |datacenter|
+        datacenter.location.network_zone == 'eu-central'
+      end.select do |datacenter|
+        datacenter.server_types[:supported].include?(server_type.id) &&
+          datacenter.server_types[:available].include?(server_type.id)
       end
     end
 
@@ -110,6 +134,13 @@ module KnifeHcloud
         key = server_type.name
         error "Server type #{server_type.name} already exists in #{sum.keys.join(', ')}" if sum[key]
         sum.merge key => server_type.id
+      end
+    end
+
+    # all servers which required type
+    def all_servers_by_type
+      @all_servers_by_type ||= hcloud_client.servers.select do |server|
+        server.server_type.id == server_type.id
       end
     end
       
