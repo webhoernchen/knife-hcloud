@@ -67,10 +67,10 @@ module KnifeHcloud
 #      p server_name
 #
 #      p hcloud_location_name
-#      p detect_hcloud_location
+#      p hcloud_location
 #
 #      p server_type_name
-#      p detect_server_type
+#      p server_type
 
       server
       handle_volumes
@@ -104,11 +104,11 @@ module KnifeHcloud
 
     def create_server
       action, server, root_password = hcloud_client.servers.create name: server_name,
-        server_type: detect_server_type,
+        server_type: server_type.id,
         start_after_create: true,
         image: boot_image,
         ssh_keys: [current_ssh_key.id],
-        datacenter: detect_hcloud_location
+        datacenter: hcloud_location.id
 
       log_action action: action, server: server
       @server_is_new = true

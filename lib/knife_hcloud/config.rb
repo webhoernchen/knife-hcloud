@@ -42,7 +42,7 @@ module KnifeHcloud
 
     IN_GERMANY = 'any_in_germany'
     IN_EU = 'any_in_eu'
-    def detect_hcloud_location
+    def hcloud_location
       if hcloud_location_name == IN_GERMANY
         all_available_hcloud_locations_sorted_by_usage.detect do |datacenter|
           datacenter.location.country == 'DE'
@@ -59,7 +59,7 @@ module KnifeHcloud
       @hcloud_locations ||= all_available_hcloud_locations.inject({}) do |sum, datacenter|
         key = datacenter.location.city.downcase
         error "Datacenter #{datacenter.name} already exists in #{sum.keys.join(', ')}" if sum[key]
-        sum.merge key => datacenter.id
+        sum.merge key => datacenter
       end
     end
 
@@ -124,7 +124,7 @@ module KnifeHcloud
       server_config['type']
     end
 
-    def detect_server_type
+    def server_type
       server_types[server_type_name] || \
         error("No server type for #{server_type_name.inspect}; available: #{server_types.keys.sort.join(', ')}")
     end
@@ -133,7 +133,7 @@ module KnifeHcloud
       @server_types ||= hcloud_client.server_types.inject({}) do |sum, server_type|
         key = server_type.name
         error "Server type #{server_type.name} already exists in #{sum.keys.join(', ')}" if sum[key]
-        sum.merge key => server_type.id
+        sum.merge key => server_type
       end
     end
 
