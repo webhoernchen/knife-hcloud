@@ -225,12 +225,19 @@ module KnifeHcloud
     end
 
     def detect_ptr_record
-      a_records = node_config['a_records']
       a_records.collect do |domain, hosts|
         hosts.collect do |host|
           [host, domain].delete_if(&:blank?).join('.')
         end
       end.flatten.first if a_records
+    end
+
+    def a_records
+      @a_records ||= if node_config.key? 'a_records'
+        node_config['a_records']
+      else
+        node_config['ssl_domains'] || {}
+      end
     end
 
     def update_known_hosts
