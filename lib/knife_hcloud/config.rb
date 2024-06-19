@@ -113,7 +113,7 @@ module KnifeHcloud
 
     def boot_images
       @boot_images ||= hcloud_client.images.select do |img|
-        img.type == 'system' && img.status == 'available' #&& img.os_flavor == 'ubuntu'
+        img.type == 'system' && img.status == 'available' && img.architecture == server_type.architecture #&& img.os_flavor == 'ubuntu'
       end.inject({}) do |sum, img|
         key = [img.os_flavor, img.os_version].join('_').gsub('.', '_')
         sum.merge key => img.id
